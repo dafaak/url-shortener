@@ -30,6 +30,8 @@ func main() {
 
 	r.POST("/shorten", h.Shorten)
 	r.GET("/:code", h.Redirect)
+	r.GET("/user/:userId/links", h.GetUserURLs)
+	r.GET("/stats/:code", h.GetStats)
 
 	log.Println("Servidor corriendo en :8080")
 	r.Run(":8080")
