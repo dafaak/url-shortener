@@ -25,11 +25,22 @@ type Metric struct {
 	CountryCode string    `json:"country_code"`
 	Browser     string    `json:"browser"`
 	OS          string    `json:"os"`
+	Referrer    string    `gorm:"type:text" json:"referrer"`
+	Platform    string    `gorm:"size:50" json:"platform"`
+}
+
+type URLStats struct {
+	TotalClicks  int            `json:"total_clicks"`
+	LastAccessed *time.Time     `json:"last_accessed"`
+	Browsers     map[string]int `json:"browsers"`
+	Platforms    map[string]int `json:"platforms"`
+	OS           map[string]int `json:"os"`
 }
 
 // Estructuras para las peticiones HTTP (DTOs)
 type ShortenRequest struct {
-	URL       string     `json:"url" binding:"required,url"`
-	UserID    *string    `json:"user_id"`
-	ExpiresAt *time.Time `json:"expires_at"`
+	URL        string     `json:"url" binding:"required,url"`
+	CustomCode string     `json:"custom_code,omitempty"`
+	UserID     *string    `json:"user_id,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at"`
 }
