@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+
 	"github.com/dafaak/url-shortener/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -18,7 +19,7 @@ func NewPostgresStorage(dsn string) (*PostgresStorage, error) {
 	}
 
 	// Esto crea las tablas automáticamente si no existen
-	err = db.AutoMigrate(&models.URL{}, &models.Metric{})
+	err = db.AutoMigrate(&models.User{}, &models.URL{}, &models.Metric{})
 	if err != nil {
 		return nil, fmt.Errorf("error migrando tablas: %w", err)
 	}
