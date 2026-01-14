@@ -13,7 +13,6 @@ import (
 func main() {
 	godotenv.Load()
 
-	// 1. Inicializar Almacenamiento
 	pg, err := storage.NewPostgresStorage(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
@@ -24,7 +23,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 2. Handler y Rutas
 	authH := &handler.AuthHandler{DB: pg}
 	h := handler.NewURLHandler(pg, rd)
 	r := gin.Default()
@@ -35,19 +33,16 @@ func main() {
 
 	// Redirección pública
 	r.GET("/:code", h.Redirect)
-	//r.GET("/:user/:code", h.Redirect)
 
 	// Lista de links pública
 	r.GET("/user/:username/links", h.GetUserURLs)
 
-	//shorten público
-	r.POST("/shorten", h.Shorten)
-
 	// Rutas protegidas
-	api := r.Group("/api")
-	api.Use(handler.AuthMiddleware())
+	protected := r.Group("/api")
+	protected.Use(handler.AuthMiddleware())
 	{
-		r.GET("/stats/:code", h.GetStats)
+		protected.POST("/shorten", h.Shorten)
+		protected.GET("/stats/:code", h.GetStats)
 	}
 
 	log.Println("Servidor corriendo en :8080")
