@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -24,12 +23,18 @@ func NewURLHandler(db *storage.PostgresStorage, cache *storage.RedisStorage) *UR
 
 func (h *URLHandler) GetStats(c *gin.Context) {
 	shortCode := c.Param("code")
-	//userID, _ := c.Get("userID")
-	userID := "dafaak"
 	var urlObj models.URL
 
+	userVal, existsCtx := c.Get("username")
+	if !existsCtx {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontró el usuario en el token"})
+		return
+	}
+
+	usernameStr := userVal.(string)
+
 	// 1. Validar propiedad del link
-	if err := h.DB.DB.Where("short_code = ? AND user_id = ?", shortCode, userID).First(&urlObj).Error; err != nil {
+	if err := h.DB.DB.Where("short_code = ? AND username = ?", shortCode, usernameStr).First(&urlObj).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Enlace no encontrado"})
 		return
 	}
@@ -78,11 +83,11 @@ func (h *URLHandler) aggregateMetric(urlID uint, column string, targetMap map[st
 }
 
 func (h *URLHandler) GetUserURLs(c *gin.Context) {
-	userID := c.Param("userId")
+	username := c.Param("username")
 	var urls []models.URL
 
-	// Buscamos en la base de datos filtrando por user_id
-	result := h.DB.DB.Where("user_id = ?", userID).Find(&urls)
+	// Buscamos en la base de datos filtrando por username
+	result := h.DB.DB.Where("username = ?", username).Find(&urls)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener los enlaces"})
 		return
@@ -100,8 +105,17 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		return
 	}
 
+	// EXTRAER EL USERNAME DEL CONTEXTO (TOKEN)
+	userVal, existsCtx := c.Get("username")
+	if !existsCtx {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontró el usuario en el token"})
+		return
+	}
+
+	usernameStr := userVal.(string)
+
 	var finalCode string
-	fmt.Println("custom_code", req.CustomCode)
+
 	if req.CustomCode != "" {
 
 		// --- CASO ALIAS PERSONALIZADO ---
@@ -127,7 +141,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	urlObj := models.URL{
 		OriginalURL: req.URL,
 		ShortCode:   finalCode,
-		UserID:      req.UserID,
+		Username:    &usernameStr,
 		ExpiresAt:   req.ExpiresAt,
 	}
 
@@ -142,6 +156,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"short_url": "http://localhost:8080/" + finalCode,
 		"code":      finalCode,
+		"owner":     usernameStr,
 	})
 }
 
