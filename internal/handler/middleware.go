@@ -16,14 +16,24 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		}
+
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// Guardamos el ID real del usuario como float64 (así lo guarda JWT)
-			//c.Set("userID", uint(claims["user_id"].(float64)))
-			c.Set("username", claims["username"].(string))
+
+			username, ok := claims["username"].(string)
+			if !ok {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token mal formado: falta username"})
+				return
+			}
+
+			c.Set("username", username)
+
 			c.Next()
 		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
