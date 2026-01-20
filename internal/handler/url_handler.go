@@ -91,9 +91,8 @@ func (h *URLHandler) GetPublicLinks(c *gin.Context) {
 	// 1. Le pertenezcan
 	// 2. No hayan expirado (o no tengan fecha de expiración)
 	//now := time.Now()
-	err := h.DB.DB.Where("username = ?", username).
-		//"AND (expires_at IS NULL OR expires_at > ?)", username, now).
-		Select("short_code, original_url"). // Solo traemos lo necesario
+	err := h.DB.DB.Where("username = ? AND is_public = ?", username, true).
+		//Where("(expires_at IS NULL OR expires_at > ?)", time.Now()).
 		Find(&urls).Error
 
 	if err != nil {
@@ -170,9 +169,15 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		finalCode = utils.Encode(uint64(time.Now().UnixNano()))
 	}
 
+	isPublic := true
+	if req.IsPublic != nil {
+		isPublic = *req.IsPublic
+	}
+
 	urlObj := models.URL{
 		OriginalURL: req.URL,
 		ShortCode:   finalCode,
+		IsPublic:    &isPublic,
 		Username:    &usernameStr,
 		ExpiresAt:   req.ExpiresAt,
 	}

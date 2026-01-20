@@ -9,11 +9,12 @@ type URL struct {
 	ID             uint       `gorm:"primaryKey" json:"id"`
 	Username       *string    `gorm:"index" json:"username,omitempty"`
 	OriginalURL    string     `gorm:"not null" json:"original_url"`
-	ShortCode      string     `gorm:"uniqueIndex;not null;size:15" json:"short_code"`
+	ShortCode      string     `gorm:"uniqueIndex;not null;size:20" json:"short_code"`
 	CreatedAt      time.Time  `json:"created_at"`
 	LastAccessedAt *time.Time `json:"last_accessed_at,omitempty"`
 	ExpiresAt      *time.Time `gorm:"index" json:"expires_at,omitempty"`
 	ClickCount     int        `gorm:"default:0" json:"click_count"`
+	IsPublic       *bool      `gorm:"default:true" json:"is_public"`
 	Metrics        []Metric   `gorm:"foreignKey:URLID" json:"-"`
 }
 
@@ -51,6 +52,7 @@ type ShortenRequest struct {
 	URL        string     `json:"url" binding:"required,url"`
 	CustomCode string     `json:"custom_code,omitempty"`
 	Username   *string    `json:"username,omitempty"`
+	IsPublic   *bool      `json:"is_public"`
 	ExpiresAt  *time.Time `json:"expires_at"`
 }
 
