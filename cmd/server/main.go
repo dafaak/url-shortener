@@ -45,6 +45,7 @@ func main() {
 		protected.POST("/shorten", h.Shorten)
 		protected.GET("/stats/:code", h.GetStats)
 		protected.GET("/user/:username/links", h.GetUserURLs)
+		protected.PATCH("/links/:code/privacy", h.TogglePrivacy)
 	}
 
 	log.Println("Servidor corriendo en :8080")

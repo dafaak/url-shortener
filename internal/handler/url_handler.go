@@ -251,3 +251,39 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 	h.DB.DB.Model(&urlObj).UpdateColumn("click_count", gorm.Expr("click_count + 1"))
 	h.DB.DB.Model(&urlObj).UpdateColumn("last_accessed_at", time.Now())
 }
+
+func (h *URLHandler) TogglePrivacy(c *gin.Context) {
+	code := c.Param("code")
+
+	// 1. Obtener el username del token (inyectado por el middleware)
+	userVal, _ := c.Get("username")
+	usernameStr := userVal.(string)
+
+	var urlObj models.URL
+	// 2. Buscar la URL y verificar que pertenezca al usuario
+	if err := h.DB.DB.Where("short_code = ? AND username = ?", code, usernameStr).First(&urlObj).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Link no encontrado o no tienes permiso"})
+		return
+	}
+
+	// 3. Invertir el estado actual
+	// Como IsPublic es un puntero (*bool), debemos manejarlo con cuidado
+	newStatus := !*urlObj.IsPublic
+
+	if err := h.DB.DB.Model(&urlObj).Update("is_public", newStatus).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la privacidad"})
+		return
+	}
+
+	statusText := "público"
+	if !newStatus {
+		statusText = "privado"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Privacidad actualizada",
+		"short_code": code,
+		"is_public":  newStatus,
+		"detail":     "Ahora tu link es " + statusText,
+	})
+}
