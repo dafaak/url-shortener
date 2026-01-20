@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -80,6 +81,37 @@ func (h *URLHandler) aggregateMetric(urlID uint, column string, targetMap map[st
 			targetMap[label] = total
 		}
 	}
+}
+
+func (h *URLHandler) GetPublicLinks(c *gin.Context) {
+	username := c.Param("username")
+	var urls []models.URL
+
+	// Buscamos links del usuario que:
+	// 1. Le pertenezcan
+	// 2. No hayan expirado (o no tengan fecha de expiración)
+	//now := time.Now()
+	err := h.DB.DB.Where("username = ?", username).
+		//"AND (expires_at IS NULL OR expires_at > ?)", username, now).
+		Select("short_code, original_url"). // Solo traemos lo necesario
+		Find(&urls).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener links"})
+		fmt.Println("Error: ", err)
+		return
+	}
+
+	// Mapeamos a nuestro struct limpio
+	var response []models.PublicLink
+	for _, u := range urls {
+		response = append(response, models.PublicLink{
+			ShortCode:   u.ShortCode,
+			OriginalURL: u.OriginalURL,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *URLHandler) GetUserURLs(c *gin.Context) {
