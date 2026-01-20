@@ -63,3 +63,8 @@ type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
+
+type PublicLink struct {
+	ShortCode   string `json:"short_code"`
+	OriginalURL string `json:"original_url"`
+}
