@@ -35,14 +35,16 @@ func main() {
 	r.GET("/:code", h.Redirect)
 
 	// Lista de links pública
-	r.GET("/user/:username/links", h.GetUserURLs)
 
+	// Ruta pública para la app de Link Bio
+	r.GET("/public/users/:username/links", h.GetPublicLinks)
 	// Rutas protegidas
 	protected := r.Group("/api")
 	protected.Use(handler.AuthMiddleware())
 	{
 		protected.POST("/shorten", h.Shorten)
 		protected.GET("/stats/:code", h.GetStats)
+		protected.GET("/user/:username/links", h.GetUserURLs)
 	}
 
 	log.Println("Servidor corriendo en :8080")
