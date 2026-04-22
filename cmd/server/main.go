@@ -30,6 +30,11 @@ func main() {
 
 	authH := &handler.AuthHandler{DB: pg}
 	h := handler.NewURLHandler(pg, rd)
+
+	mode := os.Getenv("GIN_MODE")
+	if mode == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.Default()
 
 	// Ping
