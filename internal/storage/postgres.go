@@ -6,6 +6,7 @@ import (
 	"github.com/dafaak/url-shortener/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type PostgresStorage struct {
@@ -13,7 +14,9 @@ type PostgresStorage struct {
 }
 
 func NewPostgresStorage(dsn string) (*PostgresStorage, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("fallo al conectar a postgres: %w", err)
 	}

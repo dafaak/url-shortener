@@ -50,10 +50,10 @@ type URLStats struct {
 // Estructuras para las peticiones HTTP (DTOs)
 type ShortenRequest struct {
 	URL        string     `json:"url" binding:"required,url"`
-	CustomCode string     `json:"custom_code,omitempty"`
+	CustomCode string     `json:"custom_code,omitempty" binding:"omitempty,min=3,max=15"`
 	Username   *string    `json:"username,omitempty"`
 	IsPublic   *bool      `json:"is_public"`
-	ExpiresAt  *time.Time `json:"expires_at"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 }
 
 type RegisterRequest struct {

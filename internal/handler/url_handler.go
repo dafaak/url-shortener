@@ -146,6 +146,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	usernameStr := userVal.(string)
 
 	var finalCode string
+	fmt.Println(req.CustomCode)
 
 	if req.CustomCode != "" {
 

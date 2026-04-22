@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -11,8 +12,10 @@ import (
 )
 
 func main() {
+	fmt.Println("1. Iniciando app...")
 	godotenv.Load()
 
+	fmt.Println("2. Conectando a DB...")
 	pg, err := storage.NewPostgresStorage(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
@@ -22,6 +25,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("3. DB inicializada, levantando el servidor...")
 
 	authH := &handler.AuthHandler{DB: pg}
 	h := handler.NewURLHandler(pg, rd)
