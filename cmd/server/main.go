@@ -32,6 +32,14 @@ func main() {
 	h := handler.NewURLHandler(pg, rd)
 	r := gin.Default()
 
+	// Ping
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+			"status":  "healthy",
+		})
+	})
+
 	// Auth público
 	r.POST("/register", authH.Register)
 	r.POST("/login", authH.Login)
