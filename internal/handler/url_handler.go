@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/dafaak/url-shortener/internal/models"
@@ -14,12 +15,14 @@ import (
 )
 
 type URLHandler struct {
-	DB    *storage.PostgresStorage
-	Cache *storage.RedisStorage
+	DB     *storage.PostgresStorage
+	Cache  *storage.RedisStorage
+	Parser *uaparser.Parser
 }
 
 func NewURLHandler(db *storage.PostgresStorage, cache *storage.RedisStorage) *URLHandler {
-	return &URLHandler{DB: db, Cache: cache}
+	uaParser := uaparser.NewFromSaved()
+	return &URLHandler{DB: db, Cache: cache, Parser: uaParser}
 }
 
 func (h *URLHandler) GetStats(c *gin.Context) {
@@ -234,23 +237,36 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 
 	// 2. Parsear el User-Agent
 	uaString := c.Request.UserAgent()
-	parser := uaparser.NewFromSaved()
-	client := parser.Parse(uaString)
+	client := h.Parser.Parse(uaString)
+	ip := c.ClientIP()
+
+	dbPath := os.Getenv("GEOIP_DB_PATH")
+
+	if dbPath == "" {
+		dbPath = "./internal/storage/geoip/GeoLite2-Country.mmdb"
+	}
+
+	fmt.Printf("DEBUG: Buscando IP: %s en Path: %s\n", ip, dbPath)
+	country := utils.GetCountryFromIP(ip, dbPath)
+	fmt.Printf("DEBUG: Resultado obtenido: %s\n", country)
 
 	// 3. Crear el registro de métrica
 	metric := models.Metric{
-		URLID:     urlObj.ID,
-		IPAddress: c.ClientIP(),
-		Browser:   client.UserAgent.Family,
-		OS:        client.Os.Family,
-		Platform:  client.Device.Family,
-		Referrer:  c.Request.Referer(),
+		URLID:       urlObj.ID,
+		IPAddress:   ip,
+		CountryCode: country,
+		Browser:     client.UserAgent.Family,
+		OS:          client.Os.Family,
+		Platform:    client.Device.Family,
+		Referrer:    c.Request.Referer(),
 	}
 
 	// 4. Guardar en DB y actualizar contador global
 	h.DB.DB.Create(&metric)
-	h.DB.DB.Model(&urlObj).UpdateColumn("click_count", gorm.Expr("click_count + 1"))
-	h.DB.DB.Model(&urlObj).UpdateColumn("last_accessed_at", time.Now())
+	h.DB.DB.Model(&urlObj).Updates(map[string]interface{}{
+		"click_count":      gorm.Expr("click_count + 1"),
+		"last_accessed_at": time.Now(),
+	})
 }
 
 func (h *URLHandler) TogglePrivacy(c *gin.Context) {

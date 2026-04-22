@@ -53,6 +53,12 @@ func main() {
 		protected.PATCH("/links/:code/privacy", h.TogglePrivacy)
 	}
 
-	log.Println("Servidor corriendo en :8080")
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Println("Servidor corriendo en " + port)
+	r.Run(":" + port)
 }
