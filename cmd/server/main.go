@@ -35,7 +35,14 @@ func main() {
 	if mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
 	r := gin.Default()
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "https://tu-dominio-front.vercel.app"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true,
+	}))
 
 	// Ping
 	r.GET("/ping", func(c *gin.Context) {
