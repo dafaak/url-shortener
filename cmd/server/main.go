@@ -7,6 +7,7 @@ import (
 
 	"github.com/dafaak/url-shortener/internal/handler"
 	"github.com/dafaak/url-shortener/internal/storage"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
