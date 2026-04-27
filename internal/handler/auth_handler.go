@@ -60,6 +60,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Generar JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": user.Username,
+		"plan":     user.Plan,
 		"exp":      time.Now().Add(time.Hour * 72).Unix(),
 	})
 

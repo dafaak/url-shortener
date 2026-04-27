@@ -36,6 +36,7 @@ type User struct {
 	Email    string `gorm:"uniqueIndex;not null" json:"email"`
 	Username string `gorm:"uniqueIndex;not null" json:"username"`
 	Password string `gorm:"not null" json:"-"` // "-" para que nunca viaje en el JSON
+	Plan     string `gorm:"not null;default:'free'" json:"plan"`
 	URLs     []URL  `gorm:"foreignKey:Username;references:Username" json:"urls,omitempty"`
 }
 
@@ -69,4 +70,9 @@ type LoginRequest struct {
 type PublicLink struct {
 	ShortCode   string `json:"short_code"`
 	OriginalURL string `json:"original_url"`
+}
+
+type UserContext struct {
+	Username string
+	Plan     string
 }

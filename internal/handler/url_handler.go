@@ -139,19 +139,20 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		return
 	}
 
-	// EXTRAER EL USERNAME DEL CONTEXTO (TOKEN)
-	userVal, existsCtx := c.Get("username")
-	if !existsCtx {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontró el usuario en el token"})
-		return
+	user, ok := utils.GetUserFromContext(c)
+
+	if !ok{
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no identificado"})
+        return
 	}
 
-	usernameStr := userVal.(string)
+	// EXTRAER EL USERNAME DEL CONTEXTO (TOKEN)
+	usernameStr:=user.Username
 
 	var finalCode string
-	fmt.Println(req.CustomCode)
 
-	if req.CustomCode != "" {
+
+	if req.CustomCode != "" && user.Plan=="premium" {
 
 		// --- CASO ALIAS PERSONALIZADO ---
 		// 1. Validar longitud o caracteres (opcional)
