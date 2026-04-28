@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ua-parser/uap-go/uaparser"
 	"gorm.io/gorm"
+
 )
 
 type URLHandler struct {
@@ -117,17 +118,26 @@ func (h *URLHandler) GetPublicLinks(c *gin.Context) {
 }
 
 func (h *URLHandler) GetUserURLs(c *gin.Context) {
-	username := c.Param("username")
-	var urls []models.URL
+    // 1. Extraemos el usuario del contexto (inyectado por tu Middleware de JWT)
+    user, exists := utils.GetUserFromContext(c)
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesión no válida"})
+        return
+    }
 
-	// Buscamos en la base de datos filtrando por username
-	result := h.DB.DB.Where("username = ?", username).Find(&urls)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener los enlaces"})
-		return
-	}
+    var urls []models.URL
 
-	c.JSON(http.StatusOK, urls)
+    // 2. Buscamos en la DB filtrando por el username que sacamos del TOKEN
+    // Esto garantiza que un usuario solo vea SUS propios links.
+    result := h.DB.DB.Where("username = ?", user.Username).Find(&urls)
+    
+    if result.Error != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener los enlaces"})
+        return
+    }
+
+    // 3. Devolvemos los links
+    c.JSON(http.StatusOK, urls)
 }
 
 // Shorten crea el link corto
