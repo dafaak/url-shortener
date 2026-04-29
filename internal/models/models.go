@@ -76,3 +76,9 @@ type UserContext struct {
 	Username string
 	Plan     string
 }
+
+type LoginResponse struct {
+    Token    string `json:"token"`
+    Username string `json:"username"`
+    Plan     string `json:"plan"`
+}

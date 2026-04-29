@@ -64,6 +64,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"exp":      time.Now().Add(time.Hour * 72).Unix(),
 	})
 
-	t, _ := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	c.JSON(http.StatusOK, gin.H{"token": t})
+	t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar el token"})
+		return
+	}
+
+	// Usamos el struct definido para una respuesta limpia
+	response := models.LoginResponse{
+		Token:    t,
+		Username: user.Username,
+		Plan:     user.Plan,
+	}
+
+	c.JSON(http.StatusOK, response)
+
 }
