@@ -193,6 +193,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		IsPublic:    &isPublic,
 		Username:    &usernameStr,
 		ExpiresAt:   req.ExpiresAt,
+		Alias:       req.Alias,
 	}
 
 	if err := h.DB.DB.Create(&urlObj).Error; err != nil {
@@ -204,7 +205,8 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	h.Cache.Cli.Set(c.Request.Context(), finalCode, urlObj.OriginalURL, 24*time.Hour)
 
 	c.JSON(http.StatusCreated, gin.H{
-		"short_url": "http://localhost:8080/" + finalCode,
+		"message":   "¡Enlace creado correctamente!",
+		"short_url": "https://ghst.tech/" + finalCode,
 		"code":      finalCode,
 		"owner":     usernameStr,
 	})

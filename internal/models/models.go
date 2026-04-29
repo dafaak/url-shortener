@@ -8,6 +8,7 @@ import (
 type URL struct {
 	ID             uint       `gorm:"primaryKey" json:"id"`
 	Username       *string    `gorm:"index" json:"username,omitempty"`
+	Alias          *string    `gorm:"size:50" json:"alias,omitempty"`
 	OriginalURL    string     `gorm:"not null" json:"original_url"`
 	ShortCode      string     `gorm:"uniqueIndex;not null;size:20" json:"short_code"`
 	CreatedAt      time.Time  `json:"created_at"`
@@ -52,6 +53,7 @@ type URLStats struct {
 type ShortenRequest struct {
 	URL        string     `json:"url" binding:"required,url"`
 	CustomCode string     `json:"custom_code,omitempty" binding:"omitempty,min=3,max=15"`
+	Alias      *string    `json:"alias,omitempty" binding:"omitempty,min=5,max=50"`
 	Username   *string    `json:"username,omitempty"`
 	IsPublic   *bool      `json:"is_public"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
