@@ -72,6 +72,8 @@ func main() {
 		protected.GET("/stats/:code", h.GetStats)
 		protected.GET("/my-links", h.GetUserURLs)
 		protected.PATCH("/links/:code/privacy", h.TogglePrivacy)
+		protected.DELETE("/links/:id", h.Delete)
+
 	}
 
 	port := os.Getenv("PORT")

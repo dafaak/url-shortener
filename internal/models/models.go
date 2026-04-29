@@ -15,7 +15,7 @@ type URL struct {
 	ExpiresAt      *time.Time `gorm:"index" json:"expires_at,omitempty"`
 	ClickCount     int        `gorm:"default:0" json:"click_count"`
 	IsPublic       *bool      `gorm:"default:true" json:"is_public"`
-	Metrics        []Metric   `gorm:"foreignKey:URLID" json:"-"`
+	Metrics        []Metric   `gorm:"foreignKey:URLID;constraint:OnDelete:CASCADE;" json:"-"`
 }
 
 // Metric es la tabla de analíticas
@@ -78,7 +78,7 @@ type UserContext struct {
 }
 
 type LoginResponse struct {
-    Token    string `json:"token"`
-    Username string `json:"username"`
-    Plan     string `json:"plan"`
+	Token    string `json:"token"`
+	Username string `json:"username"`
+	Plan     string `json:"plan"`
 }
