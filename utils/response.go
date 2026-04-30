@@ -10,3 +10,10 @@ func SendSuccess(c *gin.Context, code int, message string, data interface{}) {
 		"data":    data,
 	})
 }
+
+func SendError(c *gin.Context, statusCode int, message string) {
+	c.JSON(statusCode, gin.H{
+		"message": message,
+		"data":    nil, // Mantenemos la estructura pero con data nulo
+	})
+}
