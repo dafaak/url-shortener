@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/dafaak/url-shortener/internal/models"
@@ -162,8 +163,19 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		return
 	}
 
-	// EXTRAER EL USERNAME DEL CONTEXTO (TOKEN)
 	usernameStr := user.Username
+
+	canCreate, err := h.CheckLinkLimit(user.Username, user.Plan)
+
+	if err != nil {
+		utils.SendError(c, http.StatusInternalServerError, "Error al verificar límites")
+		return
+	}
+
+	if !canCreate {
+		utils.SendError(c, http.StatusForbidden, "Has alcanzado el límite de enlaces para el plan gratuito")
+		return
+	}
 
 	var finalCode string
 
@@ -336,4 +348,26 @@ func (h *URLHandler) Delete(c *gin.Context) {
 
 	utils.SendSuccess(c, http.StatusOK, "Enlace eliminado correctamente", link)
 
+}
+
+func (h *URLHandler) CheckLinkLimit(username string, plan string) (bool, error) {
+	var count int64
+
+	if err := h.DB.DB.Model(&models.URL{}).Where("username = ?", username).Count(&count).Error; err != nil {
+		return false, err
+	}
+
+	limit := os.Getenv("FREE_LINKS_LIMIT") // Límite para Free
+
+	num, err := strconv.ParseInt(limit, 10, 64)
+
+	if err != nil {
+		fmt.Println("Error:", err)
+		return false, err
+	}
+	if plan == "premium" {
+		return true, nil // Sin límite o un límite mucho más alto (ej. 1000)
+	}
+
+	return count < int64(num), nil
 }
