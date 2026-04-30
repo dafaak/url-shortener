@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ua-parser/uap-go/uaparser"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type URLHandler struct {
@@ -31,15 +32,14 @@ func (h *URLHandler) GetStats(c *gin.Context) {
 
 	userVal, existsCtx := c.Get("username")
 	if !existsCtx {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontró el usuario en el token"})
+		utils.SendError(c, http.StatusUnauthorized, "Sesión expirada o inválida")
 		return
 	}
 
 	usernameStr := userVal.(string)
 
-	// 1. Validar propiedad del link
 	if err := h.DB.DB.Where("short_code = ? AND username = ?", shortCode, usernameStr).First(&urlObj).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Enlace no encontrado"})
+		utils.SendError(c, http.StatusNotFound, "No se encontró el enlace o no tienes permisos")
 		return
 	}
 
@@ -61,7 +61,7 @@ func (h *URLHandler) GetStats(c *gin.Context) {
 	// Agrupar por Plataforma (Mobile/Desktop)
 	h.aggregateMetric(urlObj.ID, "platform", stats.Platforms)
 
-	c.JSON(http.StatusOK, stats)
+	utils.SendSuccess(c, http.StatusOK, "Estadísticas cargadas", stats)
 }
 
 // Función auxiliar para evitar repetir código de agrupación
@@ -99,7 +99,7 @@ func (h *URLHandler) GetPublicLinks(c *gin.Context) {
 		Find(&urls).Error
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener links"})
+		utils.SendError(c, http.StatusInternalServerError, "Error al obtener links")
 		fmt.Println("Error: ", err)
 		return
 	}
@@ -113,14 +113,15 @@ func (h *URLHandler) GetPublicLinks(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	utils.SendSuccess(c, http.StatusOK, "Enlaces publicos obtenidos", response)
+
 }
 
 func (h *URLHandler) GetUserURLs(c *gin.Context) {
 	// 1. Extraemos el usuario del contexto (inyectado por tu Middleware de JWT)
 	user, exists := utils.GetUserFromContext(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesión no válida"})
+		utils.SendError(c, http.StatusUnauthorized, "Sesión no válida")
 		return
 	}
 
@@ -131,12 +132,12 @@ func (h *URLHandler) GetUserURLs(c *gin.Context) {
 	result := h.DB.DB.Where("username = ?", user.Username).Find(&urls)
 
 	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener los enlaces"})
+		utils.SendError(c, http.StatusInternalServerError, "Error al obtener los enlaces")
 		return
 	}
 
 	// 3. Devolvemos los links
-	utils.SendSuccess(c, http.StatusOK, "Ok", urls)
+	utils.SendSuccess(c, http.StatusOK, "¡Links obtenidos!", urls)
 	// c.JSON(http.StatusOK, urls)
 }
 
@@ -145,14 +146,14 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	var req models.ShortenRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		utils.SendError(c, http.StatusBadRequest, "Datos inválidos")
 		return
 	}
 
 	user, ok := utils.GetUserFromContext(c)
 
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no identificado"})
+		utils.SendError(c, http.StatusUnauthorized, "Usuario no identificado")
 		return
 	}
 
@@ -166,7 +167,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		// --- CASO ALIAS PERSONALIZADO ---
 		// 1. Validar longitud o caracteres (opcional)
 		if len(req.CustomCode) < 3 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "El alias debe tener al menos 3 caracteres"})
+			utils.SendError(c, http.StatusBadRequest, "El alias debe tener al menos 3 caracteres")
 			return
 		}
 
@@ -174,7 +175,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		var exists int64
 		h.DB.DB.Model(&models.URL{}).Where("short_code = ?", req.CustomCode).Count(&exists)
 		if exists > 0 {
-			c.JSON(http.StatusConflict, gin.H{"error": "Este alias ya está en uso"})
+			utils.SendError(c, http.StatusConflict, "Este alias ya está en uso")
 			return
 		}
 		finalCode = req.CustomCode
@@ -198,7 +199,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	}
 
 	if err := h.DB.DB.Create(&urlObj).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear el link"})
+		utils.SendError(c, http.StatusInternalServerError, "No se pudo crear el link")
 		return
 	}
 
@@ -224,7 +225,7 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 	// 2. Buscar en Postgres
 	var urlObj models.URL
 	if err := h.DB.DB.Where("short_code = ?", code).First(&urlObj).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No encontrado"})
+		utils.SendError(c, http.StatusNotFound, "No encontrado")
 		return
 	}
 
@@ -277,66 +278,52 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 }
 
 func (h *URLHandler) TogglePrivacy(c *gin.Context) {
-	code := c.Param("code")
+	id := c.Param("id")
 
-	// 1. Obtener el username del token (inyectado por el middleware)
 	userVal, _ := c.Get("username")
 	usernameStr := userVal.(string)
 
 	var urlObj models.URL
-	// 2. Buscar la URL y verificar que pertenezca al usuario
-	if err := h.DB.DB.Where("short_code = ? AND username = ?", code, usernameStr).First(&urlObj).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Link no encontrado o no tienes permiso"})
+
+	result := h.DB.DB.Model(&urlObj).
+		Clauses(clause.Returning{}).
+		Where("id = ? AND username = ?", id, usernameStr).
+		Update("is_public", gorm.Expr("NOT is_public")) // Delegamos la inversión a la DB
+
+	if result.Error != nil {
+		utils.SendError(c, http.StatusInternalServerError, "No se pudo actualizar la privacidad")
 		return
 	}
 
-	// 3. Invertir el estado actual
-	// Como IsPublic es un puntero (*bool), debemos manejarlo con cuidado
-	newStatus := !*urlObj.IsPublic
-
-	if err := h.DB.DB.Model(&urlObj).Update("is_public", newStatus).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la privacidad"})
+	if result.RowsAffected == 0 {
+		utils.SendError(c, http.StatusNotFound, "Link no encontrado o no tienes permiso")
 		return
 	}
 
-	statusText := "público"
-	if !newStatus {
-		statusText = "privado"
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "Privacidad actualizada",
-		"short_code": code,
-		"is_public":  newStatus,
-		"detail":     "Ahora tu link es " + statusText,
-	})
+	utils.SendSuccess(c, http.StatusOK, "Privacidad actulizada ", urlObj)
 }
 
 func (h *URLHandler) Delete(c *gin.Context) {
 	linkID := c.Param("id")
 
-	// 1. Recuperamos el objeto genérico del contexto
 	val, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesión no válida"})
 		return
 	}
 
-	// 2. Casteamos al tipo de dato correcto (UserContext)
 	userCtx, ok := val.(models.UserContext)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de contexto de usuario"})
 		return
 	}
 
-	// 3. Ahora ya tenemos acceso a userCtx.Username para la query
 	var link models.URL
 	if err := h.DB.DB.Where("id = ? AND username = ?", linkID, userCtx.Username).First(&link).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Enlace no encontrado o no tienes permiso"})
 		return
 	}
 
-	// 4. Eliminación
 	if err := h.DB.DB.Delete(&link).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar"})
 		return
