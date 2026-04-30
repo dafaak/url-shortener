@@ -342,5 +342,6 @@ func (h *URLHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Enlace eliminado correctamente"})
+	utils.SendSuccess(c, http.StatusOK, "Enlace eliminado correctamente", link)
+
 }
