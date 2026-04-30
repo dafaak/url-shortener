@@ -202,15 +202,10 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 		return
 	}
 
-	// Guardar en caché
 	h.Cache.Cli.Set(c.Request.Context(), finalCode, urlObj.OriginalURL, 24*time.Hour)
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message":   "¡Enlace creado correctamente!",
-		"short_url": "https://ghst.tech/" + finalCode,
-		"code":      finalCode,
-		"owner":     usernameStr,
-	})
+	utils.SendSuccess(c, http.StatusCreated, "¡Enlace creado correctamente!", urlObj)
+
 }
 
 // Redirect busca y redirige
