@@ -136,7 +136,8 @@ func (h *URLHandler) GetUserURLs(c *gin.Context) {
 	}
 
 	// 3. Devolvemos los links
-	c.JSON(http.StatusOK, urls)
+	utils.SendSuccess(c, http.StatusOK, "Ok", urls)
+	// c.JSON(http.StatusOK, urls)
 }
 
 // Shorten crea el link corto
