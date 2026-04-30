@@ -320,12 +320,12 @@ func (h *URLHandler) Delete(c *gin.Context) {
 
 	var link models.URL
 	if err := h.DB.DB.Where("id = ? AND username = ?", linkID, userCtx.Username).First(&link).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Enlace no encontrado o no tienes permiso"})
+		utils.SendError(c, http.StatusNotFound, "Enlace no encontrado o no tienes permiso")
 		return
 	}
 
 	if err := h.DB.DB.Delete(&link).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar"})
+		utils.SendError(c, http.StatusInternalServerError, "Error al eliminar")
 		return
 	}
 
