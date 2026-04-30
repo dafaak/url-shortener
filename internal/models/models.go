@@ -83,4 +83,6 @@ type LoginResponse struct {
 	Token    string `json:"token"`
 	Username string `json:"username"`
 	Plan     string `json:"plan"`
+	CurrentLinks int    `json:"current_links"` // Datos actuales
+    Limit        int    `json:"limit"`
 }
