@@ -8,6 +8,7 @@ import (
 
 	"github.com/dafaak/url-shortener/internal/models"
 	"github.com/dafaak/url-shortener/internal/storage"
+	"github.com/dafaak/url-shortener/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -78,6 +79,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Plan:     user.Plan,
 	}
 
-	c.JSON(http.StatusOK, response)
+	utils.SendSuccess(c, http.StatusOK, "¡Bienvenido de nuevo!", response)
 
 }
