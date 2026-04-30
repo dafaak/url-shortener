@@ -118,27 +118,32 @@ func (h *URLHandler) GetPublicLinks(c *gin.Context) {
 }
 
 func (h *URLHandler) GetUserURLs(c *gin.Context) {
-	// 1. Extraemos el usuario del contexto (inyectado por tu Middleware de JWT)
+
 	user, exists := utils.GetUserFromContext(c)
 	if !exists {
 		utils.SendError(c, http.StatusUnauthorized, "Sesión no válida")
 		return
 	}
 
+	search := c.Query("search")
+
 	var urls []models.URL
 
-	// 2. Buscamos en la DB filtrando por el username que sacamos del TOKEN
-	// Esto garantiza que un usuario solo vea SUS propios links.
-	result := h.DB.DB.Where("username = ?", user.Username).Find(&urls)
+	query := h.DB.DB.Where("username = ?", user.Username)
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("(alias ILIKE ? OR short_code ILIKE ?)", searchTerm, searchTerm)
+	}
+
+	result := query.Order("created_at DESC").Find(&urls)
 
 	if result.Error != nil {
 		utils.SendError(c, http.StatusInternalServerError, "Error al obtener los enlaces")
 		return
 	}
 
-	// 3. Devolvemos los links
 	utils.SendSuccess(c, http.StatusOK, "¡Links obtenidos!", urls)
-	// c.JSON(http.StatusOK, urls)
 }
 
 // Shorten crea el link corto
