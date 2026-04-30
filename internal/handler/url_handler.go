@@ -147,7 +147,6 @@ func (h *URLHandler) GetUserURLs(c *gin.Context) {
 	utils.SendSuccess(c, http.StatusOK, "¡Links obtenidos!", urls)
 }
 
-// Shorten crea el link corto
 func (h *URLHandler) Shorten(c *gin.Context) {
 	var req models.ShortenRequest
 
@@ -357,17 +356,15 @@ func (h *URLHandler) CheckLinkLimit(username string, plan string) (bool, error) 
 		return false, err
 	}
 
-	limit := os.Getenv("FREE_LINKS_LIMIT") // Límite para Free
-
-	num, err := strconv.ParseInt(limit, 10, 64)
-
-	if err != nil {
-		fmt.Println("Error:", err)
-		return false, err
-	}
 	if plan == "premium" {
-		return true, nil // Sin límite o un límite mucho más alto (ej. 1000)
+		return true, nil
 	}
 
-	return count < int64(num), nil
+	freeLimitStr := os.Getenv("FREE_LINKS_LIMIT")
+	limit, err := strconv.Atoi(freeLimitStr)
+	if err != nil {
+		limit = 10 // Fallback de seguridad
+	}
+
+	return count < int64(limit), nil
 }
