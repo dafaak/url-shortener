@@ -318,8 +318,9 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 
 func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 	uaString := c.Request.UserAgent()
+	ip := c.ClientIP()
 
-	if utils.IsBot(uaString) {
+	if utils.IsBot(uaString, ip) {
 		return
 	}
 
@@ -332,8 +333,6 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 	if err := h.DB.DB.Select("id").Where("short_code = ?", code).First(&urlObj).Error; err != nil {
 		return
 	}
-
-	ip := c.ClientIP()
 
 	deviceType := client.Device.Family
 	if deviceType == "Other" {
