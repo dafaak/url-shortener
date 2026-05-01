@@ -319,16 +319,8 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 	uaString := c.Request.UserAgent()
 
-	lowUA := strings.ToLower(uaString)
-	botKeywords := []string{
-		"bot", "spider", "crawler", "facebookexternalhit",
-		"slurp", "btbot", "archive.org", "screenshot", "embedly",
-	}
-
-	for _, keyword := range botKeywords {
-		if strings.Contains(lowUA, keyword) {
-			return
-		}
+	if utils.IsBot(uaString) {
+		return
 	}
 
 	client := h.Parser.Parse(uaString)
@@ -366,14 +358,18 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 	}
 
 	go func(m models.Metric, uID uint) {
-		h.DB.DB.Create(&m)
+
+		if err := h.DB.DB.Create(&m).Error; err != nil {
+			// Loguear error si es necesario, pero no bloqueamos al usuario
+			return
+		}
+
 		h.DB.DB.Model(&models.URL{}).Where("id = ?", uID).Updates(map[string]interface{}{
 			"click_count":      gorm.Expr("click_count + 1"),
 			"last_accessed_at": time.Now(),
 		})
 	}(metric, urlObj.ID)
 }
-
 func (h *URLHandler) TogglePrivacy(c *gin.Context) {
 	id := c.Param("id")
 
