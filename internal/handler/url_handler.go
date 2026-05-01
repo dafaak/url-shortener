@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -220,6 +221,7 @@ func (h *URLHandler) Shorten(c *gin.Context) {
 	var req models.ShortenRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Error en ShouldBindJSON: %v", err)
 		utils.SendError(c, http.StatusBadRequest, "Datos inválidos")
 		return
 	}
