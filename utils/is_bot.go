@@ -5,19 +5,24 @@ import (
 	"strings"
 )
 
-// Variable global para almacenar los rangos ya procesados en memoria
 var compiledNetworks []*net.IPNet
 
-// init se ejecuta automáticamente una sola vez al levantar el servidor
 func init() {
 	rawNetworks := []string{
-		"173.252.64.0/18", // Meta
-		"31.13.64.0/18",   // Meta
-		"57.141.0.0/16",   // Meta (Aquí están las IPs 57.141.6.x que se filtraron)
-		"108.174.0.0/20",  // LinkedIn
-		"199.16.156.0/22", // X
-		"34.192.0.0/10",   // AWS
-		"54.144.0.0/12",   // AWS
+		// Rangos masivos de Meta (Facebook/Instagram)
+		"66.220.144.0/20", // Cubre la 66.220.149.x que se filtró
+		"173.252.64.0/18",
+		"31.13.64.0/18",
+		"57.141.0.0/16",
+		// Rangos masivos de AWS (Donde viven los bots de preview)
+		"52.0.0.0/8", // Cubre las 52.38.x y 52.42.x que se filtraron
+		"16.0.0.0/8", // Cubre la 16.144.x que se filtró
+		"34.0.0.0/8",
+		"35.0.0.0/8",
+		"54.0.0.0/8",
+		// LinkedIn & Twitter
+		"108.174.0.0/20",
+		"199.16.156.0/22",
 	}
 
 	for _, cidr := range rawNetworks {
@@ -28,13 +33,14 @@ func init() {
 	}
 }
 
-// IsBot evalúa si una petición viene de un humano o un script
 func IsBot(ua string, ipStr string) bool {
-	// 1. Verificación por User-Agent (Keywords)
 	lowUA := strings.ToLower(ua)
+
+	// Si el User-Agent contiene estas palabras, es bot SEGURO
 	botKeywords := []string{
-		"bot", "spider", "crawler", "facebookexternalhit",
+		"bot", "spider", "crawler", "facebookexternalhit", "facebot",
 		"twitterbot", "linkedinbot", "whatsapp", "telegrambot",
+		"google-layout-render", "headless",
 	}
 
 	for _, keyword := range botKeywords {
@@ -43,13 +49,11 @@ func IsBot(ua string, ipStr string) bool {
 		}
 	}
 
-	// 2. Verificación por IP (Rangos de Datacenters)
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
-		return true // IP inválida = Petición sospechosa
+		return true
 	}
 
-	// Iteramos sobre los rangos pre-compilados (muy rápido)
 	for _, network := range compiledNetworks {
 		if network.Contains(ip) {
 			return true
