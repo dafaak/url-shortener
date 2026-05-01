@@ -69,7 +69,7 @@ func main() {
 	protected.Use(handler.AuthMiddleware())
 	{
 		protected.POST("/shorten", h.Shorten)
-		protected.GET("/stats/:code", h.GetStats)
+		protected.GET("/stats/:code", h.GetLinkStats)
 		protected.GET("/my-links", h.GetUserURLs)
 		protected.PATCH("/links/:code/privacy", h.TogglePrivacy)
 		protected.DELETE("/links/:id", h.Delete)

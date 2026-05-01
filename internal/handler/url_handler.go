@@ -65,6 +65,56 @@ func (h *URLHandler) GetStats(c *gin.Context) {
 	utils.SendSuccess(c, http.StatusOK, "Estadísticas cargadas", stats)
 }
 
+func (h *URLHandler) GetLinkStats(c *gin.Context) {
+    shortCode := c.Param("code")
+    user, _ := utils.GetUserFromContext(c)
+
+    var urlObj models.URL
+    if err := h.DB.DB.Where("short_code = ? AND username = ?", shortCode, user.Username).First(&urlObj).Error; err != nil {
+        utils.SendError(c, http.StatusNotFound, "Enlace no encontrado")
+        return
+    }
+
+    // 1. Obtener todas las métricas de este link
+    var metrics []models.Metric
+    h.DB.DB.Where("url_id = ?", urlObj.ID).Find(&metrics)
+
+    // 2. Mapas para agrupar datos
+    referrerStats := make(map[string]int)
+    countryStats := make(map[string]int)
+    browserStats := make(map[string]int)
+    osStats := make(map[string]int)
+
+    for _, m := range metrics {
+        // Usamos nuestro helper para el referrer
+        cleanRef := utils.CategorizeReferrer(m.Referrer)
+        referrerStats[cleanRef]++
+
+        // Agrupamos países (puedes usar el CountryCode o el nombre completo)
+        countryName := m.CountryCode
+        if countryName == "" { countryName = "Desconocido" }
+        countryStats[countryName]++
+
+        browserStats[m.Browser]++
+        osStats[m.OS]++
+    }
+
+    // 3. Responder con la data estructurada
+    utils.SendSuccess(c, http.StatusOK, "Estadísticas procesadas", gin.H{
+        "info": gin.H{
+            "alias":        urlObj.Alias,
+            "original_url": urlObj.OriginalURL,
+            "short_code":   urlObj.ShortCode,
+            "total_clicks": urlObj.ClickCount,
+            "created_at":   urlObj.CreatedAt,
+        },
+        "referrers": referrerStats,
+        "countries": countryStats,
+        "browsers":  browserStats,
+        "os":        osStats,
+    })
+}
+
 // Función auxiliar para evitar repetir código de agrupación
 func (h *URLHandler) aggregateMetric(urlID uint, column string, targetMap map[string]int) {
 	rows, err := h.DB.DB.Model(&models.Metric{}).
