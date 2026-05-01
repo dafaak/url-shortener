@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/dafaak/url-shortener/internal/models"
@@ -70,14 +69,9 @@ func (h *URLHandler) GetLinkStats(c *gin.Context) {
 	shortCode := c.Param("code")
 	user, _ := utils.GetUserFromContext(c)
 
-	uaString := c.Request.UserAgent()
-	client := h.Parser.Parse(uaString)
-
-	isBot := client.Device.Family == "Spider" ||
-		strings.Contains(strings.ToLower(uaString), "bot") ||
-		strings.Contains(strings.ToLower(uaString), "facebookexternalhit")
-
-	if isBot {
+	// Usamos el detector de bots optimizado que creamos
+	// Pasamos el User-Agent y la IP para un filtrado real
+	if utils.IsBot(c.Request.UserAgent(), c.ClientIP()) {
 		return
 	}
 
@@ -91,29 +85,38 @@ func (h *URLHandler) GetLinkStats(c *gin.Context) {
 	var metrics []models.Metric
 	h.DB.DB.Where("url_id = ?", urlObj.ID).Find(&metrics)
 
-	// 2. Mapas para agrupar datos
+	// 2. Mapas para agrupar datos (Agregamos platformStats)
 	referrerStats := make(map[string]int)
 	countryStats := make(map[string]int)
 	browserStats := make(map[string]int)
 	osStats := make(map[string]int)
+	platformStats := make(map[string]int) // <-- Nuevo mapa
 
 	for _, m := range metrics {
-		// Usamos nuestro helper para el referrer
+		// Referrers
 		cleanRef := utils.CategorizeReferrer(m.Referrer)
 		referrerStats[cleanRef]++
 
-		// Agrupamos países (puedes usar el CountryCode o el nombre completo)
+		// Países
 		countryName := m.CountryCode
 		if countryName == "" {
 			countryName = "Desconocido"
 		}
 		countryStats[countryName]++
 
+		// Navegador y OS
 		browserStats[m.Browser]++
 		osStats[m.OS]++
+
+		// Plataformas (Desktop, Mobile, etc.)
+		pName := m.Platform
+		if pName == "" || pName == "Other" {
+			pName = "Desktop" // Normalización para la estética del front
+		}
+		platformStats[pName]++
 	}
 
-	// 3. Responder con la data estructurada
+	// 3. Responder con la data estructurada incluyendo platforms
 	utils.SendSuccess(c, http.StatusOK, "Estadísticas procesadas", gin.H{
 		"info": gin.H{
 			"alias":        urlObj.Alias,
@@ -126,6 +129,7 @@ func (h *URLHandler) GetLinkStats(c *gin.Context) {
 		"countries": countryStats,
 		"browsers":  browserStats,
 		"os":        osStats,
+		"platforms": platformStats, // <-- Enviamos al frontend
 	})
 }
 
