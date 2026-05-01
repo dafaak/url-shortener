@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dafaak/url-shortener/internal/models"
@@ -66,53 +67,66 @@ func (h *URLHandler) GetStats(c *gin.Context) {
 }
 
 func (h *URLHandler) GetLinkStats(c *gin.Context) {
-    shortCode := c.Param("code")
-    user, _ := utils.GetUserFromContext(c)
+	shortCode := c.Param("code")
+	user, _ := utils.GetUserFromContext(c)
 
-    var urlObj models.URL
-    if err := h.DB.DB.Where("short_code = ? AND username = ?", shortCode, user.Username).First(&urlObj).Error; err != nil {
-        utils.SendError(c, http.StatusNotFound, "Enlace no encontrado")
-        return
-    }
+	uaString := c.Request.UserAgent()
+	client := h.Parser.Parse(uaString)
 
-    // 1. Obtener todas las métricas de este link
-    var metrics []models.Metric
-    h.DB.DB.Where("url_id = ?", urlObj.ID).Find(&metrics)
+	isBot := client.Device.Family == "Spider" ||
+		strings.Contains(strings.ToLower(uaString), "bot") ||
+		strings.Contains(strings.ToLower(uaString), "facebookexternalhit")
 
-    // 2. Mapas para agrupar datos
-    referrerStats := make(map[string]int)
-    countryStats := make(map[string]int)
-    browserStats := make(map[string]int)
-    osStats := make(map[string]int)
+	if isBot {
+		return
+	}
 
-    for _, m := range metrics {
-        // Usamos nuestro helper para el referrer
-        cleanRef := utils.CategorizeReferrer(m.Referrer)
-        referrerStats[cleanRef]++
+	var urlObj models.URL
+	if err := h.DB.DB.Where("short_code = ? AND username = ?", shortCode, user.Username).First(&urlObj).Error; err != nil {
+		utils.SendError(c, http.StatusNotFound, "Enlace no encontrado")
+		return
+	}
 
-        // Agrupamos países (puedes usar el CountryCode o el nombre completo)
-        countryName := m.CountryCode
-        if countryName == "" { countryName = "Desconocido" }
-        countryStats[countryName]++
+	// 1. Obtener todas las métricas de este link
+	var metrics []models.Metric
+	h.DB.DB.Where("url_id = ?", urlObj.ID).Find(&metrics)
 
-        browserStats[m.Browser]++
-        osStats[m.OS]++
-    }
+	// 2. Mapas para agrupar datos
+	referrerStats := make(map[string]int)
+	countryStats := make(map[string]int)
+	browserStats := make(map[string]int)
+	osStats := make(map[string]int)
 
-    // 3. Responder con la data estructurada
-    utils.SendSuccess(c, http.StatusOK, "Estadísticas procesadas", gin.H{
-        "info": gin.H{
-            "alias":        urlObj.Alias,
-            "original_url": urlObj.OriginalURL,
-            "short_code":   urlObj.ShortCode,
-            "total_clicks": urlObj.ClickCount,
-            "created_at":   urlObj.CreatedAt,
-        },
-        "referrers": referrerStats,
-        "countries": countryStats,
-        "browsers":  browserStats,
-        "os":        osStats,
-    })
+	for _, m := range metrics {
+		// Usamos nuestro helper para el referrer
+		cleanRef := utils.CategorizeReferrer(m.Referrer)
+		referrerStats[cleanRef]++
+
+		// Agrupamos países (puedes usar el CountryCode o el nombre completo)
+		countryName := m.CountryCode
+		if countryName == "" {
+			countryName = "Desconocido"
+		}
+		countryStats[countryName]++
+
+		browserStats[m.Browser]++
+		osStats[m.OS]++
+	}
+
+	// 3. Responder con la data estructurada
+	utils.SendSuccess(c, http.StatusOK, "Estadísticas procesadas", gin.H{
+		"info": gin.H{
+			"alias":        urlObj.Alias,
+			"original_url": urlObj.OriginalURL,
+			"short_code":   urlObj.ShortCode,
+			"total_clicks": urlObj.ClickCount,
+			"created_at":   urlObj.CreatedAt,
+		},
+		"referrers": referrerStats,
+		"countries": countryStats,
+		"browsers":  browserStats,
+		"os":        osStats,
+	})
 }
 
 // Función auxiliar para evitar repetir código de agrupación
@@ -303,13 +317,30 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 }
 
 func (h *URLHandler) recordMetric(code string, c *gin.Context) {
+	uaString := c.Request.UserAgent()
+
+	lowUA := strings.ToLower(uaString)
+	botKeywords := []string{
+		"bot", "spider", "crawler", "facebookexternalhit",
+		"slurp", "btbot", "archive.org", "screenshot", "embedly",
+	}
+
+	for _, keyword := range botKeywords {
+		if strings.Contains(lowUA, keyword) {
+			return
+		}
+	}
+
+	client := h.Parser.Parse(uaString)
+	if client.Device.Family == "Spider" {
+		return
+	}
+
 	var urlObj models.URL
 	if err := h.DB.DB.Select("id").Where("short_code = ?", code).First(&urlObj).Error; err != nil {
 		return
 	}
 
-	uaString := c.Request.UserAgent()
-	client := h.Parser.Parse(uaString)
 	ip := c.ClientIP()
 
 	deviceType := client.Device.Family
