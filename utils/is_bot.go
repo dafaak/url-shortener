@@ -15,6 +15,7 @@ func init() {
 		"31.13.64.0/18",
 		"57.141.0.0/16",
 		// Rangos masivos de AWS (Donde viven los bots de preview)
+		"44.0.0.0/8",
 		"52.0.0.0/8", // Cubre las 52.38.x y 52.42.x que se filtraron
 		"16.0.0.0/8", // Cubre la 16.144.x que se filtró
 		"34.0.0.0/8",
