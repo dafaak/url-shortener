@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dafaak/url-shortener/internal/models"
@@ -324,6 +325,7 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 	uaString := c.Request.UserAgent()
 	ip := c.ClientIP()
 
+	// 1. Filtro de Bots (IP + User-Agent)
 	if utils.IsBot(uaString, ip) {
 		return
 	}
@@ -338,11 +340,39 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 		return
 	}
 
-	deviceType := client.Device.Family
-	if deviceType == "Other" {
-		deviceType = "Desktop"
+	// 2. Normalización de Plataforma Granular
+	deviceFamily := client.Device.Family
+	osFamily := client.Os.Family
+	platform := "Desktop" // Valor por defecto
+
+	switch {
+	// Segmento Apple Mobile
+	case deviceFamily == "iPhone":
+		platform = "iPhone"
+	case deviceFamily == "iPad":
+		platform = "iPad"
+
+	// Segmento Android (Agrupamos modelos específicos y la "K" aquí)
+	case osFamily == "Android" || deviceFamily == "K" || deviceFamily == "Smartphone":
+		platform = "Android"
+
+	// Tablets genéricas (que no sean iPad)
+	case strings.Contains(strings.ToLower(deviceFamily), "tablet"):
+		platform = "Tablet"
+
+	// Otros móviles (iPod, Windows Phone, etc.)
+	case strings.Contains(strings.ToLower(uaString), "mobile"):
+		platform = "Mobile"
+
+	// Escritorio
+	case deviceFamily == "Other" || deviceFamily == "":
+		platform = "Desktop"
+
+	default:
+		platform = deviceFamily
 	}
 
+	// 3. Preparación de Referrer
 	ref := c.Request.Referer()
 	if ref == "" {
 		ref = "Direct / Bookmark"
@@ -350,20 +380,20 @@ func (h *URLHandler) recordMetric(code string, c *gin.Context) {
 
 	country := utils.GetCountryFromIP(ip, os.Getenv("GEOIP_DB_PATH"))
 
+	// 4. Construcción del objeto Metric
 	metric := models.Metric{
 		URLID:       urlObj.ID,
 		IPAddress:   ip,
 		CountryCode: country,
 		Browser:     client.UserAgent.Family,
-		OS:          client.Os.Family,
-		Platform:    deviceType,
+		OS:          osFamily,
+		Platform:    platform,
 		Referrer:    ref,
 	}
 
+	// 5. Escritura Asíncrona (Goroutine)
 	go func(m models.Metric, uID uint) {
-
 		if err := h.DB.DB.Create(&m).Error; err != nil {
-			// Loguear error si es necesario, pero no bloqueamos al usuario
 			return
 		}
 
