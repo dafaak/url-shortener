@@ -253,44 +253,44 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 }
 
 func (h *URLHandler) recordMetric(code string, c *gin.Context) {
-	// 1. Obtenemos el ID de la URL
 	var urlObj models.URL
 	if err := h.DB.DB.Select("id").Where("short_code = ?", code).First(&urlObj).Error; err != nil {
 		return
 	}
 
-	// 2. Parsear el User-Agent
 	uaString := c.Request.UserAgent()
 	client := h.Parser.Parse(uaString)
 	ip := c.ClientIP()
 
-	dbPath := os.Getenv("GEOIP_DB_PATH")
-
-	if dbPath == "" {
-		dbPath = "./internal/storage/geoip/GeoLite2-Country.mmdb"
+	deviceType := client.Device.Family
+	if deviceType == "Other" {
+		deviceType = "Desktop"
 	}
 
-	fmt.Printf("DEBUG: Buscando IP: %s en Path: %s\n", ip, dbPath)
-	country := utils.GetCountryFromIP(ip, dbPath)
-	fmt.Printf("DEBUG: Resultado obtenido: %s\n", country)
+	ref := c.Request.Referer()
+	if ref == "" {
+		ref = "Direct / Bookmark"
+	}
 
-	// 3. Crear el registro de métrica
+	country := utils.GetCountryFromIP(ip, os.Getenv("GEOIP_DB_PATH"))
+
 	metric := models.Metric{
 		URLID:       urlObj.ID,
 		IPAddress:   ip,
 		CountryCode: country,
 		Browser:     client.UserAgent.Family,
 		OS:          client.Os.Family,
-		Platform:    client.Device.Family,
-		Referrer:    c.Request.Referer(),
+		Platform:    deviceType,
+		Referrer:    ref,
 	}
 
-	// 4. Guardar en DB y actualizar contador global
-	h.DB.DB.Create(&metric)
-	h.DB.DB.Model(&urlObj).Updates(map[string]interface{}{
-		"click_count":      gorm.Expr("click_count + 1"),
-		"last_accessed_at": time.Now(),
-	})
+	go func(m models.Metric, uID uint) {
+		h.DB.DB.Create(&m)
+		h.DB.DB.Model(&models.URL{}).Where("id = ?", uID).Updates(map[string]interface{}{
+			"click_count":      gorm.Expr("click_count + 1"),
+			"last_accessed_at": time.Now(),
+		})
+	}(metric, urlObj.ID)
 }
 
 func (h *URLHandler) TogglePrivacy(c *gin.Context) {
